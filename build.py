@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parent
 DATA = ROOT / "data"
 SITE = ROOT / "site"
 SITE_NAME = "灯油とガソリンの値段（都道府県別）"
+SITE_URL = "https://toyu-kakaku.com"
 BASE_URL = "https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/"
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36"
 
@@ -122,7 +123,7 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}a{
 def page(title, desc, body, path, extra_head=""):
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
-<meta name="description" content="{html.escape(desc)}"><link rel="canonical" href="{path}">
+<meta name="description" content="{html.escape(desc)}"><link rel="canonical" href="{SITE_URL}{path}">
 <style>{CSS}</style>{extra_head}</head><body>
 <header><a href="/">{SITE_NAME}</a></header><main>{body}</main>
 <footer><p>出典：資源エネルギー庁「石油製品価格調査」（<a href="{BASE_URL}results.html">週次ファイル</a>）を加工して作成。
@@ -231,6 +232,12 @@ def build(data):
 調査の方法は<a href="https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/">資源エネルギー庁のページ</a>をご覧ください。</p>"""
     (SITE / "about.html").write_text(page(f"このサイトについて | {SITE_NAME}", "データの出典と更新について", about, "/about.html"),
                                      encoding="utf-8")
+    urls = ["/", "/about.html"] + [f"/{SLUG[p]}.html" for p in PREFS]
+    (SITE / "sitemap.xml").write_text(
+        '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        + "".join(f"<url><loc>{SITE_URL}{u}</loc><lastmod>{latest}</lastmod></url>\n" for u in urls)
+        + "</urlset>\n", encoding="utf-8")
+    (SITE / "robots.txt").write_text(f"User-agent: *\nAllow: /\nSitemap: {SITE_URL}/sitemap.xml\n", encoding="utf-8")
     print(f"{latest} 時点で {len(PREFS) + 2} ページ書き出し → {SITE}")
 
 
