@@ -61,6 +61,30 @@ def fetch():
     (DATA / "s5.xlsx").write_bytes(body)
 
 
+HOJO_URL = "https://nenryo-teigakuhikisage.go.jp/"
+
+
+def fetch_subsidy():
+    """補助金の特設ページから今週の支給単価を取る。取れなければ前回の値を使う。"""
+    try:
+        req = urllib.request.Request(HOJO_URL, headers={"User-Agent": UA})
+        t = urllib.request.urlopen(req, timeout=60).read().decode("utf-8", "replace")
+        since = re.search(r'id="currentWeek">(\d{4})年(\d{1,2})月(\d{1,2})日以降の支給単価', t)
+        units = dict(re.findall(r'<dt><span>([^<]+)</span></dt>\s*<dd><span class="num">([\d.]+)</span>', t))
+        if since and "灯油・重油" in units:
+            info = {"since": dt.date(*map(int, since.groups())).isoformat(),
+                    "units": {k: float(v) for k, v in units.items()}}
+            DATA.mkdir(exist_ok=True)
+            (DATA / "subsidy.json").write_text(json.dumps(info, ensure_ascii=False), encoding="utf-8")
+    except Exception as e:
+        print("補助金ページが取れませんでした:", e)
+
+
+def load_subsidy():
+    f = DATA / "subsidy.json"
+    return json.loads(f.read_text(encoding="utf-8")) if f.exists() else None
+
+
 def load():
     wb = openpyxl.load_workbook(DATA / "s5.xlsx", read_only=True)
     out = {}
@@ -128,7 +152,7 @@ def page(title, desc, body, path, extra_head=""):
 <header><a href="/">{SITE_NAME}</a></header><main>{body}</main>
 <footer><p>出典：資源エネルギー庁「石油製品価格調査」（<a href="{BASE_URL}results.html">週次ファイル</a>）を加工して作成。
 数値は各週月曜時点の消費税込みの小売価格。灯油は18リットルあたり、ガソリン・軽油は1リットルあたり。</p>
-<p><a href="/about.html">このサイトについて</a></p></footer></body></html>"""
+<p><a href="/hojokin.html">補助金はいつまで？</a> ・ <a href="/about.html">このサイトについて</a></p></footer></body></html>"""
 
 
 CHART_JS = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>'
@@ -153,7 +177,41 @@ def winter_table(s, p):
     return rows[-6:]
 
 
-def build(data):
+def hojokin_page(data, sub):
+    k, r = data["kerosene"], data["regular"]
+    upd = dt.date.fromisoformat(k["dates"][-1])
+    since = dt.date.fromisoformat(sub["since"])
+    u = sub["units"]
+    ku = u["灯油・重油"]
+    nat_k, nat_r = last(k["全国"]), last(r["全国"])
+    rows = "".join(f"<tr><td>{n}</td><td></td><td>{v:.1f}円/L</td></tr>" for n, v in u.items())
+    body = f"""<h1>灯油・ガソリンの補助金はいつまで？今週の補助額</h1>
+<p class="muted">{since.year}年{since.month}月{since.day}日以降の支給単価。国の特設ページが更新されたら、このページも自動で書き換わります。</p>
+<div class="cards"><div class="card">灯油の補助<b>{ku:.1f}円/L</b><span class="muted">18Lに直すと{ku * 18:,.0f}円分</span></div>
+<div class="card">ガソリンの補助<b>{u.get("ガソリン", 0):.1f}円/L</b></div>
+<div class="card">今の灯油（全国）<b>{nat_k:,}円</b><span class="muted">18L・{upd.month}/{upd.day}時点</span></div>
+<div class="card">今のレギュラー（全国）<b>{nat_r:,}円/L</b><span class="muted">{upd.month}/{upd.day}時点</span></div></div>
+<h2>いつまで続く？</h2>
+<p>今の補助（緊急的激変緩和措置）は2026年3月19日に始まりました。
+国の特設ページには、{since.month}月{since.day}日時点で<strong>終わる日は書かれていません</strong>。
+終わる日や金額の変更が発表されたら、このページに反映します。</p>
+<h2>補助のしくみ</h2>
+<p>補助金は私たちに直接配られるのではなく、石油元売りなどに支払われ、卸の値段を下げる形でお店の値段を抑えます。
+そのため、お店の値段が補助額の分だけぴったり下がるとは限りません。
+「18Lに直すと{ku * 18:,.0f}円分」は、1Lあたりの補助額を18倍した目安です。</p>
+<h2>今週の支給単価（油の種類別）</h2>
+<table><tr><th>油の種類</th><th></th><th>1Lあたり</th></tr>{rows}</table>
+<p class="muted">出典：<a href="{HOJO_URL}">資源エネルギー庁 燃料油価格定額引下げ措置 特設ページ</a></p>
+<h2>都道府県別の灯油の値段</h2>
+<p><a href="/">今週の都道府県ランキングを見る</a></p>
+<div class="prefs">{"".join(f'<a href="/{SLUG[q]}.html">{q}</a>' for q in PREFS)}</div>"""
+    (SITE / "hojokin.html").write_text(page(
+        f"灯油・ガソリンの補助金はいつまで？今週の補助額 {ku:.1f}円/L（{since.month}/{since.day}〜）| {SITE_NAME}",
+        f"{since.month}月{since.day}日以降の補助は灯油・ガソリンとも1Lあたり{ku:.1f}円（灯油18Lで{ku * 18:,.0f}円分）。終わる日は未発表。国の特設ページから自動更新。",
+        body, "/hojokin.html"), encoding="utf-8")
+
+
+def build(data, sub=None):
     SITE.mkdir(exist_ok=True)
     k = data["kerosene"]
     latest = k["dates"][-1]
@@ -173,6 +231,7 @@ def build(data):
     ds = [{"label": "全国 灯油（店頭）", "data": k["全国"][tail:], "borderColor": "#c4501b"}]
     body = f"""<h1>灯油18Lの値段、今週の都道府県ランキング</h1>
 <p class="muted">{upd.month}月{upd.day}日（月）時点。毎週水曜ごろ、国の調査が出たら更新します。</p>
+{f'<p><a href="/hojokin.html">補助金はいつまで？今週の補助額は1Lあたり{sub["units"]["灯油・重油"]:.1f}円</a></p>' if sub else ""}
 <div class="cards"><div class="card">全国平均<b>{nat:,}円</b><span class="muted">18Lあたり</span></div>
 <div class="card">先週から<b class="{"up" if nat > nat_prev else "down"}">{sign(nat - nat_prev)}円</b></div>
 <div class="card">1年前から<b>{sign(nat - nat_ya)}円</b></div>
@@ -233,6 +292,9 @@ def build(data):
     (SITE / "about.html").write_text(page(f"このサイトについて | {SITE_NAME}", "データの出典と更新について", about, "/about.html"),
                                      encoding="utf-8")
     urls = ["/", "/about.html"] + [f"/{SLUG[p]}.html" for p in PREFS]
+    if sub:
+        hojokin_page(data, sub)
+        urls.insert(1, "/hojokin.html")
     (SITE / "sitemap.xml").write_text(
         '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
         + "".join(f"<url><loc>{SITE_URL}{u}</loc><lastmod>{latest}</lastmod></url>\n" for u in urls)
@@ -244,4 +306,5 @@ def build(data):
 if __name__ == "__main__":
     if "--no-fetch" not in sys.argv:
         fetch()
-    build(load())
+        fetch_subsidy()
+    build(load(), load_subsidy())
