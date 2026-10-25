@@ -144,6 +144,10 @@ th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}a{
 """
 
 
+# アクセス数の集計（Cloudflare Web Analytics。Cookieなし）
+BEACON = """<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "8c3512a720374babb2e6b58fd73736d5"}'></script>"""
+
+
 def page(title, desc, body, path, extra_head=""):
     return f"""<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(title)}</title>
@@ -152,7 +156,7 @@ def page(title, desc, body, path, extra_head=""):
 <header><a href="/">{SITE_NAME}</a></header><main>{body}</main>
 <footer><p>出典：資源エネルギー庁「石油製品価格調査」（<a href="{BASE_URL}results.html">週次ファイル</a>）を加工して作成。
 数値は各週月曜時点の消費税込みの小売価格。灯油は18リットルあたり、ガソリン・軽油は1リットルあたり。</p>
-<p><a href="/hojokin.html">補助金はいつまで？</a> ・ <a href="/about.html">このサイトについて</a></p></footer></body></html>"""
+<p><a href="/hojokin.html">補助金はいつまで？</a> ・ <a href="/about.html">このサイトについて</a></p></footer>{BEACON}</body></html>"""
 
 
 CHART_JS = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>'
@@ -288,7 +292,8 @@ def build(data, sub=None):
 <p>資源エネルギー庁が毎週公表している「石油製品価格調査」の数字を、都道府県ごとに見やすくまとめたサイトです。
 国の調査が出たら（通常は水曜）、自動で更新します。</p>
 <p>数値は国の調査をもとにこちらで集計・グラフ化したもので、個々のお店の値段とは違います。
-調査の方法は<a href="https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/">資源エネルギー庁のページ</a>をご覧ください。</p>"""
+調査の方法は<a href="https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/">資源エネルギー庁のページ</a>をご覧ください。</p>
+<p>ページの閲覧数を数えるために Cloudflare Web Analytics を使っています（Cookie は使いません）。</p>"""
     (SITE / "about.html").write_text(page(f"このサイトについて | {SITE_NAME}", "データの出典と更新について", about, "/about.html"),
                                      encoding="utf-8")
     urls = ["/", "/about.html"] + [f"/{SLUG[p]}.html" for p in PREFS]
