@@ -293,7 +293,8 @@ def build(data, sub=None):
 国の調査が出たら（通常は水曜）、自動で更新します。</p>
 <p>数値は国の調査をもとにこちらで集計・グラフ化したもので、個々のお店の値段とは違います。
 調査の方法は<a href="https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/">資源エネルギー庁のページ</a>をご覧ください。</p>
-<p>ページの閲覧数を数えるために Cloudflare Web Analytics を使っています（Cookie は使いません）。</p>"""
+<p>ページの閲覧数を数えるために Cloudflare Web Analytics を使っています（Cookie は使いません）。</p>
+<p>このサイトはアフィリエイト広告（Amazonアソシエイト含む）を掲載しています。Amazonのアソシエイトとして、当サイトは適格販売により収入を得ています。</p>"""
     (SITE / "about.html").write_text(page(f"このサイトについて | {SITE_NAME}", "データの出典と更新について", about, "/about.html"),
                                      encoding="utf-8")
     urls = ["/", "/about.html"] + [f"/{SLUG[p]}.html" for p in PREFS]
