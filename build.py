@@ -41,7 +41,7 @@ SLUG = dict(zip(PREFS, ["hokkaido", "aomori", "iwate", "miyagi", "akita", "yamag
                         "kyoto", "osaka", "hyogo", "nara", "wakayama", "tottori", "shimane", "okayama",
                         "hiroshima", "yamaguchi", "tokushima", "kagawa", "ehime", "kochi", "fukuoka", "saga",
                         "nagasaki", "kumamoto", "oita", "miyazaki", "kagoshima", "okinawa"]))
-FULL = {p: p + ("都" if p == "東京" else "道" if p == "北海道" else "府" if p in ("京都", "大阪") else "県")
+FULL = {p: p + ("都" if p == "東京" else "" if p == "北海道" else "府" if p in ("京都", "大阪") else "県")
         for p in PREFS}
 START = dt.date(2004, 6, 14)  # これ以前は税抜きで、県別の値もない
 
